@@ -41,8 +41,8 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
     w.Write([]uint8("NETSCAPE2.0")) // 8 Character application name.
     w.WriteByte(uint8(0x03)) // 3 more bytes of Application Extension.
     w.WriteByte(uint8(0x01)) // Data sub-block index (always 1).
-    w.WriteByte(uint8(0xFF)) // Number of repetitions, LSB.
-    w.WriteByte(uint8(0xFF)) // Number of repetitions, MSB.
+    w.WriteByte(uint8(image.LoopCount % 0xFF)) // Number of repetitions, LSB.
+    w.WriteByte(uint8(image.LoopCount / 0xFF)) // Number of repetitions, MSB.
     w.WriteByte(uint8(0x00)) // End of Application Extension block.
 }
 
@@ -142,8 +142,15 @@ func main() {
         }
     }
 
+    m2 := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
+    for x := 0; x < 100; x++ {
+        for y := 0; y < 100; y++ {
+            m2.SetColorIndex(x, y, uint8(x ^ y))
+        }
+    }
+
     file, _ := os.Create("new_image.gif")
 
-    animation := gif.GIF{[]*image.Paletted{m1}, []int{0}, 0}
+    animation := gif.GIF{[]*image.Paletted{m1, m2}, []int{0, 0}, 0}
     EncodeAll(file, &animation)
 }
