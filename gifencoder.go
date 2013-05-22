@@ -30,6 +30,9 @@ func writeHeader(w io.Writer, m image.Image) {
     header[9] = byte(b.Max.Y / 255)
     header[8] = byte(b.Max.Y % 255)
 
+    header[0x0A] = byte(0xF7) // GCT follows for 256 colors with resolution
+                              // 3 x 8 bits/primary
+
     header[0x0B] = byte(0x00) // Background color.
     header[0x0C] = byte(0x00) // Default pixel aspect ratio.
 
