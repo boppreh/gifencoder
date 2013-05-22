@@ -85,8 +85,6 @@ func writeFrameHeader(w *bufio.Writer, m image.Image) {
     w.WriteByte(byte(b.Max.Y % 255))
 
     w.WriteByte(byte(0x00)) // No local color table.
-
-    w.WriteByte(byte(0x08)) // Start of LZW with minimum code size 8.
 }
 
 func compressImage(m image.Image) *bytes.Buffer {
@@ -109,6 +107,8 @@ func compressImage(m image.Image) *bytes.Buffer {
 func writeFrame(w *bufio.Writer, m image.Image) {
     writeFrameHeader(w, m)
 
+    w.WriteByte(byte(0x08)) // Start of LZW with minimum code size 8.
+
     compressedImage := compressImage(m)
 
     const maxBlockSize = 255
@@ -126,6 +126,8 @@ func writeFrame(w *bufio.Writer, m image.Image) {
         bytesSoFar = (bytesSoFar + 1) % maxBlockSize
         bytesRemaining--
     }
+
+    w.WriteByte(byte(0x00)) // End of LZW data.
 }
 
 func Encode(w io.Writer, m image.Image) error {
