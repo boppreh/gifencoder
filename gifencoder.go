@@ -13,9 +13,7 @@ import (
     "math"
 )
 
-func Encode(w io.Writer, m image.Image) error {
-    b := m.Bounds()
-
+func writeHeader(w io.Writer, b image.Rectangle) {
     header := make([]byte, 0x320)
 
     header[0] = 'G'
@@ -65,6 +63,13 @@ func Encode(w io.Writer, m image.Image) error {
 
     header[0x31F] = byte(0x08) // Start of LZW with minimum code size 8.
 
+    w.Write(header)
+}
+
+func Encode(w io.Writer, m image.Image) error {
+    b := m.Bounds()
+    writeHeader(w, b)
+
     compressedImageBuffer := bytes.NewBuffer(make([]byte, 0, 255))
     lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
 
@@ -77,8 +82,6 @@ func Encode(w io.Writer, m image.Image) error {
         }
     }
     lzww.Close()
-
-    w.Write(header)
 
     const maxBlockSize = 255
     bytesSoFar := 0
