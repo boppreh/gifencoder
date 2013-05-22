@@ -40,7 +40,7 @@ func writeHeader(w *bufio.Writer, m image.Image) {
     }
 
     w.WriteByte(byte(0x21)) // Application Extension block.
-    w.WriteByte(byte(0xF9)) // Application Extension block (cont).
+    w.WriteByte(byte(0xFF)) // Application Extension block (cont).
     w.WriteByte(byte(0x0B)) // Next 11 bytes are Application Extension.
     w.WriteByte('N') // 8 Character application name.
     w.WriteByte('E')
@@ -65,7 +65,7 @@ func writeFrameHeader(w *bufio.Writer, m image.Image) {
     w.WriteByte(byte(0xF9)) // Start of Graphic Control Extension (cont).
     w.WriteByte(byte(0x04)) // 4 more bytes of GCE.
 
-    w.WriteByte(byte(0x00)) // There is no transparent pixel.
+    w.WriteByte(byte(0x08)) // There is no transparent pixel.
     w.WriteByte(byte(0x10)) // Animation delay, in centiseconds, LSB.
     w.WriteByte(byte(0x00)) // Animation delay, in centiseconds, MSB.
     w.WriteByte(byte(0x00)) // Transparent color #, if we were using.
