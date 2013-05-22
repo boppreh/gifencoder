@@ -13,7 +13,9 @@ import (
     "math"
 )
 
-func writeHeader(w io.Writer, b image.Rectangle) {
+func writeHeader(w io.Writer, m image.Image) {
+    b := m.Bounds()
+
     header := make([]byte, 0x320)
 
     header[0] = 'G'
@@ -66,9 +68,8 @@ func writeHeader(w io.Writer, b image.Rectangle) {
     w.Write(header)
 }
 
-func Encode(w io.Writer, m image.Image) error {
+func compressImage(m image.Image) *bytes.Buffer {
     b := m.Bounds()
-    writeHeader(w, b)
 
     compressedImageBuffer := bytes.NewBuffer(make([]byte, 0, 255))
     lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
@@ -83,16 +84,24 @@ func Encode(w io.Writer, m image.Image) error {
     }
     lzww.Close()
 
+    return compressedImageBuffer
+}
+
+func Encode(w io.Writer, m image.Image) error {
+    writeHeader(w, m)
+
+    compressedImage := compressImage(m)
+
     const maxBlockSize = 255
     bytesSoFar := 0
-    bytesRemaining := compressedImageBuffer.Len()
+    bytesRemaining := compressedImage.Len()
     for bytesRemaining > 0 {
         if bytesSoFar == 0 {
             blockSize := math.Min(maxBlockSize, float64(bytesRemaining))
             w.Write([]byte{byte(blockSize)})
         }
 
-        b, _ :=  compressedImageBuffer.ReadByte()
+        b, _ :=  compressedImage.ReadByte()
         w.Write([]byte{b})
 
         bytesSoFar = (bytesSoFar + 1) % maxBlockSize
