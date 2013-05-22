@@ -149,27 +149,29 @@ func EncodeAll(w io.Writer, animation *gif.GIF) error {
 
 func main() {
 	p := make([]color.Color, 256)
+
 	for i := 0; i < 256; i++ {
 		c := uint8((i / 16) ^ (i % 16))
-		p[i] = color.RGBA{c, c * uint8(i), c ^ uint8(i), 0xFF}
+		p[i] = color.RGBA{c, c, c, 0xFF}
 	}
 
-	m1 := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
-	for x := 0; x < 100; x++ {
-		for y := 0; y < 100; y++ {
-			m1.SetColorIndex(x, y, uint8(x*y))
-		}
-	}
+    images := make([]*image.Paletted, 25)
+    delays := make([]int, 25)
 
-	m2 := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
-	for x := 0; x < 100; x++ {
-		for y := 0; y < 100; y++ {
-			m2.SetColorIndex(x, y, uint8(x^y))
-		}
-	}
+    for i := 0; i < 25; i++ {
+        m := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
+        for x := 0; x < 100; x++ {
+            for y := 0; y < 100; y++ {
+                m.SetColorIndex(x, y, uint8(x * y / (i + 1)))
+            }
+        }
+
+        images[i] = m
+        delays[i] = 10
+    }
 
 	file, _ := os.Create("new_image.gif")
 
-	animation := gif.GIF{[]*image.Paletted{m1, m2}, []int{0, 0}, 0}
+	animation := gif.GIF{images, delays, 0}
 	EncodeAll(file, &animation)
 }
