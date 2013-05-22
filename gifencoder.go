@@ -148,13 +148,22 @@ func EncodeAll(w io.Writer, images []image.Image) error {
 }
 
 func main() {
-    m := image.NewRGBA(image.Rect(0, 0, 100, 100))
+    m1 := image.NewRGBA(image.Rect(0, 0, 100, 100))
     for x := 0; x < 100; x++ {
         for y := 0; y < 100; y++ {
             c := byte(x ^ y)
-            m.Set(x, y, color.RGBA{c, c, c, 0xFF})
+            m1.Set(x, y, color.RGBA{c, c, c, 0xFF})
         }
     }
+
+    m2 := image.NewRGBA(image.Rect(0, 0, 100, 100))
+    for x := 0; x < 100; x++ {
+        for y := 0; y < 100; y++ {
+            c := byte(x * y)
+            m2.Set(x, y, color.RGBA{c, c, c, 0xFF})
+        }
+    }
+
     file, _ := os.Create("new_image.gif")
-    Encode(file, m)
+    EncodeAll(file, []image.Image{m1, m2})
 }
