@@ -18,36 +18,49 @@ func Encode(w io.Writer, m image.Image) {
     file, _ := os.Open("template.gif")
     fileBytes, _ := ioutil.ReadAll(file)
 
+    b := m.Bounds()
     header := fileBytes[:0x320]
+    header[7] = byte(b.Max.X / 255)
+    header[6] = byte(b.Max.X % 255)
+    header[9] = byte(b.Max.Y / 255)
+    header[8] = byte(b.Max.Y % 255)
+
+    header[0x31B] = byte(b.Max.X / 255)
+    header[0x31A] = byte(b.Max.X % 255)
+    header[0x31D] = byte(b.Max.Y / 255)
+    header[0x31C] = byte(b.Max.Y % 255)
 
     compressedImageBuffer := bytes.NewBuffer(make([]byte, 0, 255))
     lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
 
-    b := m.Bounds()
     for y := b.Min.Y; y < b.Max.Y; y++ {
         for x := b.Min.X; x < b.Max.X; x++ {
-            c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
-            lzww.Write([]byte{c.Y})
-            //lzww.Write([]byte{byte(x * y)})
+            //c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+            //lzww.Write([]byte{c.Y})
+            lzww.Write([]byte{byte(x * y)})
+            //lzww.Write([]byte{byte(0x00)})
         }
     }
     lzww.Close()
 
     w.Write(header)
-    var bytesSoFar byte = 0
+
+    const maxBlockSize = 255
+    bytesSoFar := 0
     bytesRemaining := compressedImageBuffer.Len()
     for bytesRemaining > 0 {
         if bytesSoFar == 0 {
-            blockSize := math.Min(0xFF, float64(bytesRemaining))
+            blockSize := math.Min(maxBlockSize, float64(bytesRemaining))
             w.Write([]byte{byte(blockSize)})
         }
 
         b, _ :=  compressedImageBuffer.ReadByte()
         w.Write([]byte{b})
 
-        bytesSoFar++ // Will overflow and reset the block length count.
+        bytesSoFar = (bytesSoFar + 1) % maxBlockSize
         bytesRemaining--
     }
+
     w.Write([]byte{0, ';'})
 }
 
