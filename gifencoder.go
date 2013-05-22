@@ -54,10 +54,10 @@ func writeHeader(w io.Writer, m image.Image) {
 
     header[0x315] = byte(0x2C) // Start of Image Descriptor.
 
-    header[0x316] = byte(b.Min.X / 255)
-    header[0x315] = byte(b.Min.X % 255)
-    header[0x318] = byte(b.Min.Y / 255)
-    header[0x317] = byte(b.Min.Y % 255)
+    header[0x317] = byte(b.Min.X / 255)
+    header[0x316] = byte(b.Min.X % 255)
+    header[0x319] = byte(b.Min.Y / 255)
+    header[0x318] = byte(b.Min.Y % 255)
 
     header[0x31B] = byte(b.Max.X / 255)
     header[0x31A] = byte(b.Max.X % 255)
@@ -79,10 +79,14 @@ func compressImage(m image.Image) *bytes.Buffer {
 
     for y := b.Min.Y; y < b.Max.Y; y++ {
         for x := b.Min.X; x < b.Max.X; x++ {
-            c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
-            lzww.Write([]byte{c.Y})
+            //c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+            //lzww.Write([]byte{c.Y})
             //lzww.Write([]byte{byte(x ^ y)})
-            //lzww.Write([]byte{byte(0x00)})
+            if (x == 0 && y == 0) || (x == 1 && y == 1) {
+                lzww.Write([]byte{byte(0x00)})
+            } else {
+                lzww.Write([]byte{byte(0xFF)})
+            }
         }
     }
     lzww.Close()
@@ -117,7 +121,7 @@ func Encode(w io.Writer, m image.Image) error {
 }
 
 func main() {
-    m := image.NewRGBA(image.Rect(0, 0, 100, 100))
+    m := image.NewRGBA(image.Rect(0, 0, 3, 5))
     m.Set(1, 1, color.RGBA{0x00, 0xFF, 0x00, 0xFF})
     file, _ := os.Create("new_image.gif")
     Encode(file, m)
