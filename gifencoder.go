@@ -22,10 +22,10 @@ func writeHeader(w *bufio.Writer, m image.Image) {
     w.WriteByte('a')
 
     b := m.Bounds()
-    w.WriteByte(byte(b.Max.X % 255)) // Image width, MSB.
-    w.WriteByte(byte(b.Max.X / 255)) // Image width, LSB.
-    w.WriteByte(byte(b.Max.Y % 255)) // Image height, MSB.
-    w.WriteByte(byte(b.Max.Y / 255)) // Image height, LSB.
+    w.WriteByte(byte(b.Max.X % 255)) // Image width, LSB.
+    w.WriteByte(byte(b.Max.X / 255)) // Image width, MSB.
+    w.WriteByte(byte(b.Max.Y % 255)) // Image height, LSB.
+    w.WriteByte(byte(b.Max.Y / 255)) // Image height, MSB.
 
     w.WriteByte(byte(0xF7)) // GCT follows for 256 colors with resolution
                                  // 3 x 8 bits/primary
@@ -74,15 +74,15 @@ func writeFrameHeader(w *bufio.Writer, m image.Image) {
     w.WriteByte(byte(0x2C)) // Start of Image Descriptor.
 
     b := m.Bounds()
-    w.WriteByte(byte(b.Min.X % 255))
-    w.WriteByte(byte(b.Min.X / 255))
-    w.WriteByte(byte(b.Min.Y % 255))
-    w.WriteByte(byte(b.Min.Y / 255))
+    w.WriteByte(byte(b.Min.X % 255)) // Minimum x (can be > 0), LSB.
+    w.WriteByte(byte(b.Min.X / 255)) // Minimum x (can be > 0), MSB.
+    w.WriteByte(byte(b.Min.Y % 255)) // Minimum y (can be > 0), LSB.
+    w.WriteByte(byte(b.Min.Y / 255)) // Minimum y (can be > 0), MSB.
 
-    w.WriteByte(byte(b.Max.X % 255))
-    w.WriteByte(byte(b.Max.X / 255))
-    w.WriteByte(byte(b.Max.Y % 255))
-    w.WriteByte(byte(b.Max.Y / 255))
+    w.WriteByte(byte(b.Max.X % 255)) // Frame width, LSB.
+    w.WriteByte(byte(b.Max.X / 255)) // Frame width, MSB.
+    w.WriteByte(byte(b.Max.Y % 255)) // Frame height, LSB.
+    w.WriteByte(byte(b.Max.Y / 255)) // Frame height, MSB.
 
     w.WriteByte(byte(0x00)) // No local color table.
 }
