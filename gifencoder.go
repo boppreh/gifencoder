@@ -34,10 +34,10 @@ func writeHeader(w io.Writer, m image.Image) {
     header[0x0C] = byte(0x00) // Default pixel aspect ratio.
 
     // Grayscale color table.
-    for i := byte(0); i < 255; i++ {
-        header[0x0F + i] = i
-        header[0x0E + i] = i
-        header[0x0D + i] = i
+    for i := 0; i < 255; i++ {
+        header[0x0F + i * 3] = byte(i)
+        header[0x0E + i * 3] = byte(i)
+        header[0x0D + i * 3] = byte(i)
     }
 
     header[0x30D] = byte(0x21) // GCE data header.
