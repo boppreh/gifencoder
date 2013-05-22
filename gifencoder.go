@@ -37,7 +37,7 @@ func writeHeader(w io.Writer, m image.Image) {
     header[0x0C] = byte(0x00) // Default pixel aspect ratio.
 
     // Grayscale color table.
-    for i := 0; i < 255; i++ {
+    for i := 0; i < 256; i++ {
         header[0x0F + i * 3] = byte(i)
         header[0x0E + i * 3] = byte(i)
         header[0x0D + i * 3] = byte(i)
@@ -116,7 +116,12 @@ func Encode(w io.Writer, m image.Image) error {
 
 func main() {
     m := image.NewRGBA(image.Rect(0, 0, 100, 100))
-    m.Set(1, 1, color.RGBA{0x00, 0xFF, 0x00, 0xFF})
+    for x := 0; x < 100; x++ {
+        for y := 0; y < 100; y++ {
+            c := byte(x ^ y)
+            m.Set(x, y, color.RGBA{c, c, c, 0xFF})
+        }
+    }
     file, _ := os.Create("new_image.gif")
     Encode(file, m)
 }
