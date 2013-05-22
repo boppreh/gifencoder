@@ -81,12 +81,7 @@ func compressImage(m image.Image) *bytes.Buffer {
         for x := b.Min.X; x < b.Max.X; x++ {
             //c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
             //lzww.Write([]byte{c.Y})
-            //lzww.Write([]byte{byte(x ^ y)})
-            if (x == 0 && y == 0) || (x == 1 && y == 1) {
-                lzww.Write([]byte{byte(0x00)})
-            } else {
-                lzww.Write([]byte{byte(0xFF)})
-            }
+            lzww.Write([]byte{byte(x ^ y)})
         }
     }
     lzww.Close()
@@ -121,7 +116,7 @@ func Encode(w io.Writer, m image.Image) error {
 }
 
 func main() {
-    m := image.NewRGBA(image.Rect(0, 0, 3, 5))
+    m := image.NewRGBA(image.Rect(0, 0, 100, 100))
     m.Set(1, 1, color.RGBA{0x00, 0xFF, 0x00, 0xFF})
     file, _ := os.Create("new_image.gif")
     Encode(file, m)
