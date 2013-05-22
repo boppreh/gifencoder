@@ -10,7 +10,7 @@ Has support for static images and animations (use `Encode` for static images and
 `EncodeAll` for animations), variable delay between frames and infinite looping.
 
 I've tested the output in a few different viewers and they all rendered it
-correctly, except for HoneyView. I'm still not sure why, and any help is welcome.
+correctly, except for [HoneyView](http://www.honeyview.org/). I'm still not sure why, and any help is welcome.
 
 
 All information on the GIF format was taken from the Wikipedia page on [GIF](https://en.wikipedia.org/wiki/Graphics_Interchange_Format)
