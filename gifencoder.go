@@ -79,9 +79,8 @@ func compressImage(m image.Image) *bytes.Buffer {
 
     for y := b.Min.Y; y < b.Max.Y; y++ {
         for x := b.Min.X; x < b.Max.X; x++ {
-            //c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
-            //lzww.Write([]byte{c.Y})
-            lzww.Write([]byte{byte(x ^ y)})
+            c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+            lzww.Write([]byte{c.Y})
         }
     }
     lzww.Close()
