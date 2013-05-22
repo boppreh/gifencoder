@@ -136,8 +136,14 @@ func writeBlocks(w io.Writer, m image.Image) {
 }
 
 func Encode(w io.Writer, m image.Image) error {
-    writeHeader(w, m)
-    writeBlocks(w, m)
+    return EncodeAll(w, []image.Image{m})
+}
+
+func EncodeAll(w io.Writer, images []image.Image) error {
+    writeHeader(w, images[0])
+    for _, m := range images {
+        writeBlocks(w, m)
+    }
     w.Write([]byte{0, ';'})
 
     return nil
