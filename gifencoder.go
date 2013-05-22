@@ -14,7 +14,7 @@ import (
     "math"
 )
 
-func Encode(w io.Writer, m image.Image) {
+func Encode(w io.Writer, m image.Image) error {
     file, _ := os.Open("template.gif")
     fileBytes, _ := ioutil.ReadAll(file)
 
@@ -35,9 +35,9 @@ func Encode(w io.Writer, m image.Image) {
 
     for y := b.Min.Y; y < b.Max.Y; y++ {
         for x := b.Min.X; x < b.Max.X; x++ {
-            //c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
-            //lzww.Write([]byte{c.Y})
-            lzww.Write([]byte{byte(x * y)})
+            c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+            lzww.Write([]byte{c.Y})
+            //lzww.Write([]byte{byte(x ^ y)})
             //lzww.Write([]byte{byte(0x00)})
         }
     }
@@ -62,10 +62,12 @@ func Encode(w io.Writer, m image.Image) {
     }
 
     w.Write([]byte{0, ';'})
+
+    return nil
 }
 
 func main() {
-    m := image.NewRGBA(image.Rect(0, 0, 32, 52))
+    m := image.NewRGBA(image.Rect(0, 0, 100, 100))
     m.Set(1, 1, color.RGBA{0x00, 0xFF, 0x00, 0xFF})
     file, _ := os.Create("new_image.gif")
     Encode(file, m)
