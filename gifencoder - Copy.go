@@ -17,9 +17,9 @@ func Encode(w io.Writer, m image.Image) {
     file, _ := os.Open("template.gif")
     fileBytes, _ := ioutil.ReadAll(file)
 
-    compressedImageSize := fileBytes[0x320]
-    header := fileBytes[:0x320]
-    footer := fileBytes[0x321 + uint(compressedImageSize):]
+    imageSize := int(fileBytes[0x320])
+    header := fileBytes[:0x320-1]
+    footer := fileBytes[0x320 + imageSize:]
 
     compressedImageBuffer := bytes.NewBuffer(make([]byte, 0, 255))
     lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
@@ -36,12 +36,10 @@ func Encode(w io.Writer, m image.Image) {
     lzww.Close()
 
     fmt.Println(nBytes)
-    
+
     w.Write(header)
-    w.Write([]byte{compressedImageSize})
-    w.Write(fileBytes[0x321:0x321 + uint(compressedImageSize)])
-    //w.Write([]byte{byte(compressedImageBuffer.Len())})
-    //compressedImageBuffer.WriteTo(w)
+    w.Write([]byte{byte(compressedImageBuffer.Len())})
+    compressedImageBuffer.WriteTo(w)
     w.Write(footer)
 }
 
