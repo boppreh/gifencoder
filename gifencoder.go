@@ -1,40 +1,41 @@
 package main
 
 import (
-    "fmt" 
-    //"image"
+    //"fmt" 
+    "image"
+    "image/color"
     //"image/gif"
     "os"
     //"bufio"
     "io/ioutil"
-    //"io"
+    "io"
     "compress/lzw"
     "bytes"
 )
 
-func main() {
+func Encode(w io.Writer, m image.Image) {
     file, _ := os.Open("template.gif")
     fileBytes, _ := ioutil.ReadAll(file)
 
     imageSize := int(fileBytes[0x320])
-    compressedImageBytes := fileBytes[0x321:0x321 + imageSize]
+    header := fileBytes[:0x320]
+    footer := fileBytes[0x320 + imageSize:]
 
-    compressedBuffer := bytes.NewBuffer(compressedImageBytes)
-    lzwr := lzw.NewReader(compressedBuffer, lzw.LSB, int(8))
-    imageBytes, _ := ioutil.ReadAll(lzwr)
+    lzww := lzw.NewWriter(w, lzw.LSB, int(8))
+    b := m.Bounds()
 
-    for i := 0; i < imageSize; i++ {
-        compressedImageBytes[i] = 0x00
+    w.Write(header)
+    for y := 0; y <= b.Min.Y; y++ {
+        for x := 0; x <= b.Min.X; x++ {
+            c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+            lzww.Write([]byte{c.Y})
+        }
     }
-    fmt.Println(imageBytes)
+    w.Write(footer)
+}
 
-    compressedBuffer.Reset()
-    lzww := lzw.NewWriter(compressedBuffer, lzw.LSB, int(8))
-    lzww.Write(imageBytes)
-
-    for i := 0; i < imageSize; i++ {
-        fileBytes[0x321 + i] = compressedImageBytes[i]
-    }
-    //fmt.Println(lzwr)
-    ioutil.WriteFile("new_image.gif", fileBytes, 0777)
+func main() {
+    m := image.NewRGBA(image.Rect(0, 0, 52, 52))
+    file, _ := os.Create("new_image.gif")
+    Encode(file, m)
 }
