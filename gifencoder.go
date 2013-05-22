@@ -25,23 +25,19 @@ func Encode(w io.Writer, m image.Image) {
     lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
 
     b := m.Bounds()
-    nBytes := 0
     for y := b.Min.Y; y < b.Max.Y; y++ {
         for x := b.Min.X; x < b.Max.X; x++ {
             c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
             lzww.Write([]byte{c.Y})
-            nBytes += compressedImageBuffer.Len()
         }
     }
     lzww.Close()
 
-    fmt.Println(nBytes)
+    fmt.Println(compressedImageBuffer.Len())
     
     w.Write(header)
-    w.Write([]byte{compressedImageSize})
-    w.Write(fileBytes[0x321:0x321 + uint(compressedImageSize)])
-    //w.Write([]byte{byte(compressedImageBuffer.Len())})
-    //compressedImageBuffer.WriteTo(w)
+    w.Write([]byte{byte(compressedImageBuffer.Len())})
+    compressedImageBuffer.WriteTo(w)
     w.Write(footer)
 }
 
