@@ -6,7 +6,7 @@ import (
     "image/color"
     //"image/gif"
     "os"
-    //"bufio"
+    "bufio"
     "io"
     "compress/lzw"
     "bytes"
@@ -14,61 +14,87 @@ import (
 )
 
 func writeHeader(w io.Writer, m image.Image) {
+    buffer := bufio.NewWriter(w)
+
+    buffer.WriteByte('G')
+    buffer.WriteByte('I')
+    buffer.WriteByte('F')
+    buffer.WriteByte('8')
+    buffer.WriteByte('9')
+    buffer.WriteByte('a')
+
     b := m.Bounds()
+    buffer.WriteByte(byte(b.Max.X / 255)) // Image width, LSB.
+    buffer.WriteByte(byte(b.Max.X % 255)) // Image width, MSB.
+    buffer.WriteByte(byte(b.Max.Y / 255)) // Image height, LSB.
+    buffer.WriteByte(byte(b.Max.Y % 255)) // Image height, MSB.
 
-    header := make([]byte, 0x320)
-
-    header[0] = 'G'
-    header[1] = 'I'
-    header[2] = 'F'
-    header[3] = '8'
-    header[4] = '9'
-    header[5] = 'a'
-
-    header[7] = byte(b.Max.X / 255)
-    header[6] = byte(b.Max.X % 255)
-    header[9] = byte(b.Max.Y / 255)
-    header[8] = byte(b.Max.Y % 255)
-
-    header[0x0A] = byte(0xF7) // GCT follows for 256 colors with resolution
-                              // 3 x 8 bits/primary
-
-    header[0x0B] = byte(0x00) // Background color.
-    header[0x0C] = byte(0x00) // Default pixel aspect ratio.
+    buffer.WriteByte(byte(0xF7)) // GCT follows for 256 colors with resolution
+                                 // 3 x 8 bits/primary
+    buffer.WriteByte(byte(0x00)) // Background color.
+    buffer.WriteByte(byte(0x00)) // Default pixel aspect ratio.
 
     // Grayscale color table.
     for i := 0; i < 256; i++ {
-        header[0x0F + i * 3] = byte(i)
-        header[0x0E + i * 3] = byte(i)
-        header[0x0D + i * 3] = byte(i)
+        buffer.WriteByte(byte(i)) // Repeat the same color value to get
+        buffer.WriteByte(byte(i)) // grayscale.
+        buffer.WriteByte(byte(i))
     }
 
-    header[0x30D] = byte(0x21) // Application Extension block.
-    header[0x30E] = byte(0xF9) // Application Extension block (cont).
-    header[0x30F] = byte(0x04) // Next 4 bytes are Application Extension data.
-    header[0x310] = byte(0x01) // There is a transparent pixel.
-    header[0x311] = byte(0x00) // Animation delay, in milliseconds, LSB.
-    header[0x312] = byte(0x00) // Animation delay, in milliseconds, MSB.
-    header[0x313] = byte(0xFF) // And it is color #255.
-    header[0x314] = byte(0x00) // End of Application Extension data.
+    buffer.WriteByte(byte(0x21)) // Application Extension block.
+    buffer.WriteByte(byte(0xF9)) // Application Extension block (cont).
+    buffer.WriteByte(byte(0x0B)) // Next 11 bytes are Application Extension.
+    buffer.WriteByte('N') // 8 Character application name.
+    buffer.WriteByte('E')
+    buffer.WriteByte('T')
+    buffer.WriteByte('S')
+    buffer.WriteByte('C')
+    buffer.WriteByte('A')
+    buffer.WriteByte('P')
+    buffer.WriteByte('E')
+    buffer.WriteByte('2')
+    buffer.WriteByte('.')
+    buffer.WriteByte('0')
+    buffer.WriteByte(byte(0x03)) // 3 more bytes of Application Extension.
+    buffer.WriteByte(byte(0x01)) // Data sub-block index (always 1).
+    buffer.WriteByte(byte(0xFF)) // Number of repetitions, LSB.
+    buffer.WriteByte(byte(0xFF)) // Number of repetitions, MSB.
+    buffer.WriteByte(byte(0x00)) // End of Application Extension block.
 
-    header[0x315] = byte(0x2C) // Start of Image Descriptor.
+    buffer.Flush()
+}
 
-    header[0x317] = byte(b.Min.X / 255)
-    header[0x316] = byte(b.Min.X % 255)
-    header[0x319] = byte(b.Min.Y / 255)
-    header[0x318] = byte(b.Min.Y % 255)
+func writeFrameHeader(w io.Writer, m image.Image) {
+    buffer := bufio.NewWriter(w)
 
-    header[0x31B] = byte(b.Max.X / 255)
-    header[0x31A] = byte(b.Max.X % 255)
-    header[0x31D] = byte(b.Max.Y / 255)
-    header[0x31C] = byte(b.Max.Y % 255)
+    buffer.WriteByte(byte(0x21)) // Start of Graphic Control Extension.
+    buffer.WriteByte(byte(0xF9)) // Start of Graphic Control Extension (cont).
+    buffer.WriteByte(byte(0x04)) // 4 more bytes of GCE.
 
-    header[0x31E] = byte(0x00) // No local color table.
+    buffer.WriteByte(byte(0x00)) // There is no transparent pixel.
+    buffer.WriteByte(byte(0x10)) // Animation delay, in centiseconds, LSB.
+    buffer.WriteByte(byte(0x00)) // Animation delay, in centiseconds, MSB.
+    buffer.WriteByte(byte(0x00)) // Transparent color #, if we were using.
+    buffer.WriteByte(byte(0x00)) // End of Application Extension data.
 
-    header[0x31F] = byte(0x08) // Start of LZW with minimum code size 8.
+    buffer.WriteByte(byte(0x2C)) // Start of Image Descriptor.
 
-    w.Write(header)
+    b := m.Bounds()
+    buffer.WriteByte(byte(b.Min.X / 255))
+    buffer.WriteByte(byte(b.Min.X % 255))
+    buffer.WriteByte(byte(b.Min.Y / 255))
+    buffer.WriteByte(byte(b.Min.Y % 255))
+
+    buffer.WriteByte(byte(b.Max.X / 255))
+    buffer.WriteByte(byte(b.Max.X % 255))
+    buffer.WriteByte(byte(b.Max.Y / 255))
+    buffer.WriteByte(byte(b.Max.Y % 255))
+
+    buffer.WriteByte(byte(0x00)) // No local color table.
+
+    buffer.WriteByte(byte(0x08)) // Start of LZW with minimum code size 8.
+
+    buffer.Flush()
 }
 
 func compressImage(m image.Image) *bytes.Buffer {
@@ -88,7 +114,9 @@ func compressImage(m image.Image) *bytes.Buffer {
     return compressedImageBuffer
 }
 
-func writeBlocks(w io.Writer, compressedImage *bytes.Buffer) {
+func writeBlocks(w io.Writer, m image.Image) {
+    compressedImage := compressImage(m)
+
     const maxBlockSize = 255
     bytesSoFar := 0
     bytesRemaining := compressedImage.Len()
@@ -99,6 +127,7 @@ func writeBlocks(w io.Writer, compressedImage *bytes.Buffer) {
         }
 
         b, _ :=  compressedImage.ReadByte()
+        writeFrameHeader(w, m)
         w.Write([]byte{b})
 
         bytesSoFar = (bytesSoFar + 1) % maxBlockSize
@@ -108,7 +137,7 @@ func writeBlocks(w io.Writer, compressedImage *bytes.Buffer) {
 
 func Encode(w io.Writer, m image.Image) error {
     writeHeader(w, m)
-    writeBlocks(w, compressImage(m))
+    writeBlocks(w, m)
     w.Write([]byte{0, ';'})
 
     return nil
