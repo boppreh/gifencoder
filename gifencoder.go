@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-    file, _ := os.Open("image2.gif")
+    file, _ := os.Open("template.gif")
     fileBytes, _ := ioutil.ReadAll(file)
 
     imageSize := int(fileBytes[0x320])
@@ -36,5 +36,5 @@ func main() {
         fileBytes[0x321 + i] = compressedImageBytes[i]
     }
     //fmt.Println(lzwr)
-    ioutil.WriteFile("image2_new.gif", fileBytes, 0777)
+    ioutil.WriteFile("new_image.gif", fileBytes, 0777)
 }
