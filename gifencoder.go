@@ -49,7 +49,7 @@ func writeHeader(w io.Writer, m image.Image) {
     header[0x310] = byte(0x01) // There is a transparent pixel.
     header[0x311] = byte(0x00) // Animation delay, LSB.
     header[0x312] = byte(0x00) // Animation delay, MSB.
-    header[0x313] = byte(0x10) // And it is color #16 (0x10).
+    header[0x313] = byte(0xFF) // And it is color #255.
     header[0x314] = byte(0x00) // End of GCE data.
 
     header[0x315] = byte(0x2C) // Start of Image Descriptor.
