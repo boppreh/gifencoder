@@ -87,11 +87,7 @@ func compressImage(m image.Image) *bytes.Buffer {
     return compressedImageBuffer
 }
 
-func Encode(w io.Writer, m image.Image) error {
-    writeHeader(w, m)
-
-    compressedImage := compressImage(m)
-
+func writeBlocks(w io.Writer, compressedImage *bytes.Buffer) {
     const maxBlockSize = 255
     bytesSoFar := 0
     bytesRemaining := compressedImage.Len()
@@ -107,7 +103,11 @@ func Encode(w io.Writer, m image.Image) error {
         bytesSoFar = (bytesSoFar + 1) % maxBlockSize
         bytesRemaining--
     }
+}
 
+func Encode(w io.Writer, m image.Image) error {
+    writeHeader(w, m)
+    writeBlocks(w, compressImage(m))
     w.Write([]byte{0, ';'})
 
     return nil
