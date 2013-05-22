@@ -14,9 +14,11 @@ import (
 )
 
 var (
-	errDelay        = errors.New("gif: number of images and delays doesn't match")
-	errNoImage      = errors.New("gif: no images given (needs at least 1)")
-	errNegativeLoop = errors.New("gif: loop count can't be negative (use 0 for infinite)")
+	errDelay           = errors.New("gif: number of images and delays doesn't match")
+	errNoImage         = errors.New("gif: no images given (needs at least 1)")
+	errNegativeLoop    = errors.New("gif: loop count can't be negative (use 0 for infinite)")
+	errPaletteTooBig   = errors.New("gif: global color palette has too many elements")
+	errPaletteTooSmall = errors.New("gif: global color palette has too few elements")
 )
 
 func writeHeader(w *bufio.Writer, image *gif.GIF) {
@@ -129,8 +131,16 @@ func EncodeAll(w io.Writer, animation *gif.GIF) error {
 		return errNoImage
 	}
 
-    if animation.LoopCount < 0 {
-        return errNegativeLoop
+	if animation.LoopCount < 0 {
+		return errNegativeLoop
+	}
+
+    if len(animation.Image[0].Palette) > 256 {
+        return errPaletteTooBig
+    }
+
+    if len(animation.Image[0].Palette) < 256 {
+        return errPaletteTooSmall
     }
 
 	buffer := bufio.NewWriter(w)
@@ -155,20 +165,20 @@ func main() {
 		p[i] = color.RGBA{c, c, c, 0xFF}
 	}
 
-    images := make([]*image.Paletted, 25)
-    delays := make([]int, 25)
+	images := make([]*image.Paletted, 25)
+	delays := make([]int, 25)
 
-    for i := 0; i < 25; i++ {
-        m := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
-        for x := 0; x < 100; x++ {
-            for y := 0; y < 100; y++ {
-                m.SetColorIndex(x, y, uint8(x * y / (i + 1)))
-            }
-        }
+	for i := 0; i < 25; i++ {
+		m := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
+		for x := 0; x < 100; x++ {
+			for y := 0; y < 100; y++ {
+				m.SetColorIndex(x, y, uint8(x*y/(i+1)))
+			}
+		}
 
-        images[i] = m
-        delays[i] = 10
-    }
+		images[i] = m
+		delays[i] = 100
+	}
 
 	file, _ := os.Create("new_image.gif")
 
