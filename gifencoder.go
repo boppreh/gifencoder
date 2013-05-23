@@ -30,6 +30,15 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.WriteByte(uint8(b.Max.Y / 255)) // Paletted height, MSB.
 
 	colorTableSize := int(math.Log2(float64(len(image.Image[0].Palette)))) - 1
+	// The bits in this in this field mean:
+	// 1: The globl color table is present.
+	// 1 \
+	// 1  |-> The resolution is 8 bits per pixel
+	// 1 /
+	// 0: The values are not sorted
+	// x \
+	// x  |-> log2(color table size) - 1
+	// x /
 	w.WriteByte(uint8(0xF0 | colorTableSize)) // Color table information.
 	w.WriteByte(uint8(0x00))                  // Background color.
 	w.WriteByte(uint8(0x00))                  // Default pixel aspect ratio.
