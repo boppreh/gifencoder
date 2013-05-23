@@ -87,7 +87,7 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
 	w.WriteByte(uint8(b.Max.Y % 255)) // Frame height, LSB.
 	w.WriteByte(uint8(b.Max.Y / 255)) // Frame height, MSB.
 
-	w.WriteByte(uint8(0x00)) // No local color table.
+	w.WriteByte(uint8(0x00)) // No local color table, interlace or sorting.
 }
 
 func compressImage(m *image.Paletted) *bytes.Buffer {
