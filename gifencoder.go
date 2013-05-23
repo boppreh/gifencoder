@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/lzw"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/gif"
@@ -17,8 +18,6 @@ var (
 	errDelay           = errors.New("gif: number of images and delays doesn't match")
 	errNoImage         = errors.New("gif: no images given (needs at least 1)")
 	errNegativeLoop    = errors.New("gif: loop count can't be negative (use 0 for infinite)")
-	errPaletteTooBig   = errors.New("gif: global color palette has too many elements")
-	errPaletteTooSmall = errors.New("gif: global color palette has too few elements")
 )
 
 func writeHeader(w *bufio.Writer, image *gif.GIF) {
@@ -30,10 +29,10 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.WriteByte(uint8(b.Max.Y % 255)) // Paletted height, LSB.
 	w.WriteByte(uint8(b.Max.Y / 255)) // Paletted height, MSB.
 
-	w.WriteByte(uint8(0xF7)) // GCT follows for 256 colors with resolution
-	// 3 x 8 bits/primary
-	w.WriteByte(uint8(0x00)) // Background color.
-	w.WriteByte(uint8(0x00)) // Default pixel aspect ratio.
+	colorTableSize := int(math.Log2(float64(len(image.Image[0].Palette)))) - 1
+	w.WriteByte(uint8(0xF0 | colorTableSize)) // Color table information.
+	w.WriteByte(uint8(0x00))                  // Background color.
+	w.WriteByte(uint8(0x00))                  // Default pixel aspect ratio.
 
 	// Global Color Table.
 	palette := image.Image[0].Palette
@@ -135,14 +134,6 @@ func EncodeAll(w io.Writer, animation *gif.GIF) error {
 		return errNegativeLoop
 	}
 
-    if len(animation.Image[0].Palette) > 256 {
-        return errPaletteTooBig
-    }
-
-    if len(animation.Image[0].Palette) < 256 {
-        return errPaletteTooSmall
-    }
-
 	buffer := bufio.NewWriter(w)
 
 	writeHeader(buffer, animation)
@@ -161,27 +152,38 @@ func main() {
 	p := make([]color.Color, 256)
 
 	for i := 0; i < 256; i++ {
-		c := uint8((i / 16) ^ (i % 16))
+		//c := uint8((i / 16) ^ (i % 16))
+		c := uint8(i)
 		p[i] = color.RGBA{c, c, c, 0xFF}
 	}
 
-	images := make([]*image.Paletted, 25)
-	delays := make([]int, 25)
+	const nImages = 20
+	const imageSize = 10
 
-	for i := 0; i < 25; i++ {
-		m := image.NewPaletted(image.Rect(0, 0, 100, 100), p)
-		for x := 0; x < 100; x++ {
-			for y := 0; y < 100; y++ {
-				m.SetColorIndex(x, y, uint8(x*y/(i+1)))
+	images := make([]*image.Paletted, nImages)
+	delays := make([]int, nImages)
+
+	for i := 0; i < nImages; i++ {
+		m := image.NewPaletted(image.Rect(0, 0, imageSize, imageSize), p)
+		for x := 0; x < imageSize; x++ {
+			for y := 0; y < imageSize; y++ {
+				//m.SetColorIndex(x, y, uint8(x*y/(i+1)))
+				m.SetColorIndex(x, y, uint8(x*i))
 			}
 		}
 
 		images[i] = m
-		delays[i] = 100
+		delays[i] = 30
 	}
 
 	file, _ := os.Create("new_image.gif")
+	animation := &gif.GIF{images, delays, 0}
+	fmt.Println(EncodeAll(file, animation))
 
-	animation := gif.GIF{images, delays, 0}
-	EncodeAll(file, &animation)
+	/*file, _ := os.Open("image_test.gif")
+	    animation, _ := gif.DecodeAll(file)
+	    fmt.Println(animation)
+
+		file, _ = os.Create("new_image.gif")
+		fmt.Println(EncodeAll(file, animation))*/
 }
