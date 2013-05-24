@@ -71,7 +71,17 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
 	w.WriteByte(uint8(0xF9)) // Start of Graphic Control Extension (cont).
 	w.WriteByte(uint8(0x04)) // 4 more bytes of GCE.
 
-	w.WriteByte(uint8(0x00))         // There is no transparent pixel.
+	// The bits in this in this field mean:
+	// 0: Transparent color flag
+	// 0: User input (wait for user input before switching frames)
+	// 1 \ Disposal method, use previous frame as background
+	// 0 /
+	// 0: Reserved
+	// 0: Reserved
+	// 0: Reserved
+	// 0: Reserved
+	w.WriteByte(uint8(0x04)) // There is no transparent pixel.
+
 	w.WriteByte(uint8(delay % 0xFF)) // Animation delay, in centiseconds, LSB.
 	w.WriteByte(uint8(delay / 0xFF)) // Animation delay, in centiseconds, MSB.
 	w.WriteByte(uint8(0x00))         // Transparent color #, if we were using.
@@ -193,7 +203,7 @@ func main() {
 	animation := &gif.GIF{images, delays, 0}
 	fmt.Println(EncodeAll(file, animation))*/
 
-	file, _ := os.Open("sample_1.gif")
+	file, _ := os.Open("image_test.gif")
 	animation, _ := gif.DecodeAll(file)
 	fmt.Println(animation)
 
