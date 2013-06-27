@@ -53,7 +53,7 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	// x \
 	// x  |-> log2(color table size) - 1
 	// x /
-	w.WriteByte(uint8(0x10 | (resolution << 4) | colorTableSize)) // Color table information.
+	w.WriteByte(uint8(0x80 | ((resolution - 1) << 4) | colorTableSize)) // Color table information.
     w.WriteByte(uint8(0x00)) // Background color.
 	w.WriteByte(uint8(0x00)) // Default pixel aspect ratio.
 
