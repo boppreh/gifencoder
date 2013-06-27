@@ -10,7 +10,6 @@ import (
 	"image/color"
 	"image/gif"
 	"io"
-	"math"
 	"os"
 )
 
@@ -19,6 +18,16 @@ var (
 	errNoImage      = errors.New("gif: no images given (needs at least 1)")
 	errNegativeLoop = errors.New("gif: loop count can't be negative (use 0 for infinite)")
 )
+
+func log2(value int) int {
+    // Undefined for value <= 0, but it's used only for the color table size.
+    result := -1
+    for value > 0 {
+        result += 1
+        value >>= 1
+    }
+    return result
+}
 
 func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.Write([]uint8("GIF89a"))
@@ -29,7 +38,7 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.WriteByte(uint8(b.Max.Y % 255)) // Paletted height, LSB.
 	w.WriteByte(uint8(b.Max.Y / 255)) // Paletted height, MSB.
 
-	colorTableSize := int(math.Log2(float64(len(image.Image[0].Palette)))) - 1
+	colorTableSize := log2(len(image.Image[0].Palette)) - 1
 	// The bits in this in this field mean:
 	// 1: The globl color table is present.
 	// 1 \
