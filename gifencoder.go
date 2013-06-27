@@ -38,7 +38,8 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.WriteByte(uint8(b.Max.Y % 255)) // Paletted height, LSB.
 	w.WriteByte(uint8(b.Max.Y / 255)) // Paletted height, MSB.
 
-	colorTableSize := log2(len(image.Image[0].Palette)) - 1
+	palette := image.Image[0].Palette
+	colorTableSize := log2(len(palette)) - 1
 	// The bits in this in this field mean:
 	// 1: The globl color table is present.
 	// 1 \
@@ -53,7 +54,6 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.WriteByte(uint8(0x00))                  // Default pixel aspect ratio.
 
 	// Global Color Table.
-	palette := image.Image[0].Palette
 	for _, c := range palette {
 		r, g, b, _ := c.RGBA()
 		w.WriteByte(uint8(r >> 8))
@@ -76,25 +76,27 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 }
 
 func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
-	w.WriteByte(uint8(0x21)) // Start of Graphic Control Extension.
-	w.WriteByte(uint8(0xF9)) // Start of Graphic Control Extension (cont).
-	w.WriteByte(uint8(0x04)) // 4 more bytes of GCE.
+    if delay > 0 {
+        w.WriteByte(uint8(0x21)) // Start of Graphic Control Extension.
+        w.WriteByte(uint8(0xF9)) // Start of Graphic Control Extension (cont).
+        w.WriteByte(uint8(0x04)) // 4 more bytes of GCE.
 
-	// The bits in this in this field mean:
-	// 0: Transparent color flag
-	// 0: User input (wait for user input before switching frames)
-	// 1 \ Disposal method, use previous frame as background
-	// 0 /
-	// 0: Reserved
-	// 0: Reserved
-	// 0: Reserved
-	// 0: Reserved
-	w.WriteByte(uint8(0x04)) // There is no transparent pixel.
+        // The bits in this in this field mean:
+        // 0: Transparent color flag
+        // 0: User input (wait for user input before switching frames)
+        // 1 \ Disposal method, use previous frame as background
+        // 0 /
+        // 0: Reserved
+        // 0: Reserved
+        // 0: Reserved
+        // 0: Reserved
+        w.WriteByte(uint8(0x04)) // There is no transparent pixel.
 
-	w.WriteByte(uint8(delay % 0xFF)) // Animation delay, in centiseconds, LSB.
-	w.WriteByte(uint8(delay / 0xFF)) // Animation delay, in centiseconds, MSB.
-	w.WriteByte(uint8(0x00))         // Transparent color #, if we were using.
-	w.WriteByte(uint8(0x00))         // End of Application Extension data.
+        w.WriteByte(uint8(delay % 0xFF)) // Animation delay, in centiseconds, LSB.
+        w.WriteByte(uint8(delay / 0xFF)) // Animation delay, in centiseconds, MSB.
+        w.WriteByte(uint8(0x00))         // Transparent color #, if we were using.
+        w.WriteByte(uint8(0x00))         // End of Application Extension data.
+    }
 
 	w.WriteByte(uint8(0x2C)) // Start of Paletted Descriptor.
 
@@ -213,11 +215,12 @@ func main() {
 		delays[i] = 30
 	}
 
-	file, _ := os.Open("earth.gif")
+	file, _ := os.Open("pattern.gif")
 	animation, _ := gif.DecodeAll(file)
-	fmt.Println(animation)
+	file, err := os.Create("new_pattern.gif")
+	EncodeAll(file, animation)
 
-	file, err := os.Create("new_earth.gif")
+	file, _ = os.Open("new_pattern.gif")
+	animation, err = gif.DecodeAll(file)
     fmt.Println(err)
-	fmt.Println(EncodeAll(file, animation))
 }
