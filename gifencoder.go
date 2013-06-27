@@ -124,8 +124,13 @@ func writeFrame(w *bufio.Writer, m *image.Paletted, delay int) {
 	bytesRemaining := compressedImage.Len()
 	for bytesRemaining > 0 {
 		if bytesSoFar == 0 {
-			blockSize := math.Min(maxBlockSize, float64(bytesRemaining))
-			w.WriteByte(uint8(blockSize))
+            var blockSize uint8
+            if maxBlockSize < bytesRemaining {
+                blockSize = maxBlockSize 
+            } else {
+                blockSize = uint8(bytesRemaining)
+            }
+			w.WriteByte(blockSize)
 		}
 
 		b, _ := compressedImage.ReadByte()
