@@ -199,14 +199,11 @@ func main() {
 		delays[i] = 30
 	}
 
-	/*file, _ := os.Create("new_image.gif")
-	animation := &gif.GIF{images, delays, 0}
-	fmt.Println(EncodeAll(file, animation))*/
-
-	file, _ := os.Open("image_test.gif")
+	file, _ := os.Open("earth.gif")
 	animation, _ := gif.DecodeAll(file)
 	fmt.Println(animation)
 
-	file, _ = os.Create("new_image.gif")
+	file, err := os.Create("new_earth.gif")
+    fmt.Println(err)
 	fmt.Println(EncodeAll(file, animation))
 }
