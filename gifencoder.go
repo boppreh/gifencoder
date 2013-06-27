@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	errDelay        = errors.New("gif: number of images and delays doesn't match")
+	errDelay        = errors.New("gif: number of images and delays don't match")
 	errNoImage      = errors.New("gif: no images given (needs at least 1)")
 	errNegativeLoop = errors.New("gif: loop count can't be negative (use 0 for infinite)")
 )
