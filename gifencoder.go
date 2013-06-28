@@ -85,7 +85,7 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
         w.WriteByte(uint8(0x04)) // 4 more bytes of GCE.
 
         // The bits in this in this field mean:
-        // 0: Transparent color flag
+        // 1: Transparent color flag
         // 0: User input (wait for user input before switching frames)
         // 1 \ Disposal method, use previous frame as background
         // 0 /
@@ -93,7 +93,7 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
         // 0: Reserved
         // 0: Reserved
         // 0: Reserved
-        w.WriteByte(uint8(0x04)) // There is no transparent pixel.
+        w.WriteByte(uint8(0x05)) // There is a transparent pixel.
 
         writeLittleEndian(delay, w) // Animation delay, in centiseconds.
         w.WriteByte(uint8(0x00))    // Transparent color #, if we were using.
