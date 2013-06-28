@@ -47,9 +47,9 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	palette := image.Image[0].Palette
 	for _, c := range palette {
 		r, g, b, _ := c.RGBA()
-		w.WriteByte(uint8(r))
-		w.WriteByte(uint8(g))
-		w.WriteByte(uint8(b))
+		w.WriteByte(uint8(r >> 8))
+		w.WriteByte(uint8(g >> 8))
+		w.WriteByte(uint8(b >> 8))
 	}
 
 	// Add animation info if necessary.
