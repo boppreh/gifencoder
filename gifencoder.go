@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
 	"image/gif"
 	"io"
 	"os"
@@ -29,7 +28,10 @@ func log2(value int) int {
     return result
 }
 
-func writeLittleEndian(value int, w *bufio.Writer) {
+func writeLittleEndianShort(value int, w *bufio.Writer) {
+	if value > 65535 {
+		fmt.Println("Value too big!")
+	}
     w.WriteByte(uint8(value & 0xFFFF))
     w.WriteByte(uint8(value >> 8))
 }
@@ -38,8 +40,8 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	w.Write([]uint8("GIF89a"))
 
 	b := image.Image[0].Bounds()
-    writeLittleEndian(b.Max.X, w) // Paletted width.
-    writeLittleEndian(b.Max.Y, w) // Paletted height.
+    writeLittleEndianShort(b.Max.X, w) // Paletted width.
+    writeLittleEndianShort(b.Max.Y, w) // Paletted height.
 
 	palette := image.Image[0].Palette
 	colorTableSize := log2(len(palette)) - 1
@@ -73,7 +75,7 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 		w.Write([]uint8("NETSCAPE2.0"))       // 8 Character application name.
 		w.WriteByte(uint8(0x03))              // 3 more bytes of Application Extension.
 		w.WriteByte(uint8(0x01))              // Data sub-block index (always 1).
-        writeLittleEndian(image.LoopCount, w) // Number of repetitions.
+        writeLittleEndianShort(image.LoopCount, w) // Number of repetitions.
 		w.WriteByte(uint8(0x00))              // End of Application Extension block.
 	}
 }
@@ -95,7 +97,7 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
         // 0: Reserved
         w.WriteByte(uint8(0x05)) // There is a transparent pixel.
 
-        writeLittleEndian(delay, w) // Animation delay, in centiseconds.
+        writeLittleEndianShort(delay, w) // Animation delay, in centiseconds.
         w.WriteByte(uint8(0x00))    // Transparent color #, if we were using.
         w.WriteByte(uint8(0x00))    // End of Application Extension data.
     }
@@ -103,10 +105,10 @@ func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
 	w.WriteByte(uint8(0x2C)) // Start of Paletted Descriptor.
 
 	b := m.Bounds()
-    writeLittleEndian(b.Min.X, w) // Minimum x (can be > 0).
-    writeLittleEndian(b.Min.Y, w) // Minimum y (can be > 0).
-    writeLittleEndian(b.Max.X, w) // Frame width.
-    writeLittleEndian(b.Max.Y, w) // Frame height.
+    writeLittleEndianShort(b.Min.X, w) // Minimum x (can be > 0).
+    writeLittleEndianShort(b.Min.Y, w) // Minimum y (can be > 0).
+    writeLittleEndianShort(b.Max.X, w) // Frame width.
+    writeLittleEndianShort(b.Max.Y, w) // Frame height.
 
 	w.WriteByte(uint8(0x00)) // No local color table, interlace or sorting.
 }
@@ -185,33 +187,6 @@ func EncodeAll(w io.Writer, animation *gif.GIF) error {
 }
 
 func main() {
-	p := make([]color.Color, 256)
-
-	for i := 0; i < 256; i++ {
-		//c := uint8((i / 16) ^ (i % 16))
-		c := uint8(i)
-		p[i] = color.RGBA{c, c, c, 0xFF}
-	}
-
-	const nImages = 1
-	const imageSize = 1
-
-	images := make([]*image.Paletted, nImages)
-	delays := make([]int, nImages)
-
-	for i := 0; i < nImages; i++ {
-		m := image.NewPaletted(image.Rect(0, 0, imageSize, imageSize), p)
-		for x := 0; x < imageSize; x++ {
-			for y := 0; y < imageSize; y++ {
-				//m.SetColorIndex(x, y, uint8(x*y/(i+1)))
-				m.SetColorIndex(x, y, uint8(x))
-			}
-		}
-
-		images[i] = m
-		delays[i] = 30
-	}
-
     for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
         file, _ := os.Open(filename + ".gif")
         animation, _ := gif.DecodeAll(file)
