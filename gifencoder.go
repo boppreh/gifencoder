@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"compress/lzw"
 	"errors"
 	"fmt"
@@ -12,11 +10,16 @@ import (
 	"os"
 )
 
-var (
-	errDelay        = errors.New("gif: number of images and delays don't match")
-	errNoImage      = errors.New("gif: no images given (needs at least 1)")
-	errNegativeLoop = errors.New("gif: loop count can't be negative (use 0 for infinite)")
-)
+type encoder struct {
+	w io.Writer
+	g *gif.GIF
+	header [13]byte
+	colorTable [3 * 256]byte
+	colorTableSize int
+	frameHeader [19]byte
+	hasTransparent bool
+	transparentIndex uint8
+}
 
 func log2(value int) int {
     // Undefined for value <= 0, but it's used only for the color table size.
@@ -28,23 +31,27 @@ func log2(value int) int {
     return result
 }
 
-func writeLittleEndianShort(value int, w *bufio.Writer) {
-	if value > 65535 {
-		fmt.Println("Value too big!")
-	}
-    w.WriteByte(uint8(value & 0xFFFF))
-    w.WriteByte(uint8(value >> 8))
+func writePoint(b []uint8, p image.Point) {
+	b[0] = uint8(p.X)
+	b[1] = uint8(p.X >> 8)
+	b[2] = uint8(p.Y)
+	b[3] = uint8(p.Y >> 8)
 }
 
-func writeHeader(w *bufio.Writer, image *gif.GIF) {
-	w.Write([]uint8("GIF89a"))
+func (e *encoder) buildHeader() {
+	e.header[0] = 'G'
+	e.header[1] = 'I'
+	e.header[2] = 'F'
+	e.header[3] = '8'
+	e.header[4] = '9'
+	e.header[5] = 'a'
 
-	b := image.Image[0].Bounds()
-    writeLittleEndianShort(b.Max.X, w) // Paletted width.
-    writeLittleEndianShort(b.Max.Y, w) // Paletted height.
+	firstImage := e.g.Image[0]
 
-	palette := image.Image[0].Palette
-	colorTableSize := log2(len(palette)) - 1
+	b := firstImage.Bounds()
+	writePoint(e.header[6:10], b.Max)
+
+	e.colorTableSize = len(firstImage.Palette)
     resolution := 8
 	// The bits in this in this field mean:
 	// 1: The globl color table is present.
@@ -55,146 +62,195 @@ func writeHeader(w *bufio.Writer, image *gif.GIF) {
 	// x \
 	// x  |-> log2(color table size) - 1
 	// x /
-	w.WriteByte(uint8(0x80 | ((resolution - 1) << 4) | colorTableSize)) // Color table information.
-    w.WriteByte(uint8(0x00)) // Background color.
-	w.WriteByte(uint8(0x00)) // Default pixel aspect ratio.
+	e.header[10] = uint8(0x80 | ((resolution - 1) << 4) | log2(e.colorTableSize) - 1) // Color table information.
+	e.header[11] = 0x00 // Background color.
+	e.header[12] = 0x00 // Default pixel aspect ratio.
+}
 
+func (e *encoder) buildColorTable() {
 	// Global Color Table.
-	for _, c := range palette {
-		r, g, b, _ := c.RGBA()
-		w.WriteByte(uint8(r >> 8))
-		w.WriteByte(uint8(g >> 8))
-		w.WriteByte(uint8(b >> 8))
-	}
-
-	// Add animation info if necessary.
-	if len(image.Image) > 1 {
-		w.WriteByte(uint8(0x21))              // Application Extension block.
-		w.WriteByte(uint8(0xFF))              // Application Extension block (cont).
-		w.WriteByte(uint8(0x0B))              // Next 11 bytes are Application Extension.
-		w.Write([]uint8("NETSCAPE2.0"))       // 8 Character application name.
-		w.WriteByte(uint8(0x03))              // 3 more bytes of Application Extension.
-		w.WriteByte(uint8(0x01))              // Data sub-block index (always 1).
-        writeLittleEndianShort(image.LoopCount, w) // Number of repetitions.
-		w.WriteByte(uint8(0x00))              // End of Application Extension block.
+	for i, c := range e.g.Image[0].Palette {
+		r, g, b, a := c.RGBA()
+		e.colorTable[i * 3 + 0] = uint8(r >> 8)
+		e.colorTable[i * 3 + 1] = uint8(g >> 8)
+		e.colorTable[i * 3 + 2] = uint8(b >> 8)
+		if a < 255 {
+			e.hasTransparent = true
+			e.transparentIndex = uint8(i)
+		}
 	}
 }
 
-func writeFrameHeader(w *bufio.Writer, m *image.Paletted, delay int) {
-    if delay > 0 {
-        w.WriteByte(uint8(0x21)) // Start of Graphic Control Extension.
-        w.WriteByte(uint8(0xF9)) // Start of Graphic Control Extension (cont).
-        w.WriteByte(uint8(0x04)) // 4 more bytes of GCE.
+func (e *encoder) writeHeader() (err error) {
+	e.buildHeader()
+	e.buildColorTable()
 
-        // The bits in this in this field mean:
-        // 1: Transparent color flag
-        // 0: User input (wait for user input before switching frames)
-        // 1 \ Disposal method, use previous frame as background
-        // 0 /
-        // 0: Reserved
-        // 0: Reserved
-        // 0: Reserved
-        // 0: Reserved
-        w.WriteByte(uint8(0x05)) // There is a transparent pixel.
+	_, err = e.w.Write(e.header[:])
+	if err != nil {
+		return
+	}
 
-        writeLittleEndianShort(delay, w) // Animation delay, in centiseconds.
-        w.WriteByte(uint8(0x00))    // Transparent color #, if we were using.
-        w.WriteByte(uint8(0x00))    // End of Application Extension data.
-    }
+	_, err = e.w.Write(e.colorTable[:e.colorTableSize * 3])
+	if err != nil {
+		return
+	}
 
-	w.WriteByte(uint8(0x2C)) // Start of Paletted Descriptor.
-
-	b := m.Bounds()
-    writeLittleEndianShort(b.Min.X, w) // Minimum x (can be > 0).
-    writeLittleEndianShort(b.Min.Y, w) // Minimum y (can be > 0).
-    writeLittleEndianShort(b.Max.X, w) // Frame width.
-    writeLittleEndianShort(b.Max.Y, w) // Frame height.
-
-	w.WriteByte(uint8(0x00)) // No local color table, interlace or sorting.
+	return nil
 }
 
-func compressImage(m *image.Paletted) *bytes.Buffer {
-	compressedImageBuffer := bytes.NewBuffer(make([]uint8, 0, 255))
-	lzww := lzw.NewWriter(compressedImageBuffer, lzw.LSB, int(8))
-	lzww.Write(m.Pix)
-	lzww.Close()
+func (e *encoder) buildFrameHeader(index int) {
+	e.frameHeader[0] = uint8(0x21) // Start of Graphic Control Extension.
+	e.frameHeader[1] = uint8(0xF9)
+	e.frameHeader[2] = uint8(0x04) // Size of GCE.
 
-	return compressedImageBuffer
+
+    // The bits in this in this field mean:
+    // 1: Transparent color flag.
+    // 0: User input (wait for user input before switching frames).
+    // 0 \ Disposal method, don't use previous frame as background.
+    // 0 /
+    // 0: Reserved
+    // 0: Reserved
+    // 0: Reserved
+    // 0: Reserved
+    if e.hasTransparent {
+    	e.frameHeader[3] = uint8(0x00)
+    } else {
+    	e.frameHeader[4] = uint8(0x01)
+    }    
+    e.frameHeader[5] = e.transparentIndex // Transparent color #, if we were using.
+    delay := e.g.Delay[index]
+    e.frameHeader[6] = uint8(delay)
+    e.frameHeader[7] = uint8(delay >> 8)
+    e.frameHeader[8] = uint8(0x00) // End of Application Extension data.
+
+	e.frameHeader[9] = uint8(0x2C) // Start of Paletted Descriptor.
+	bounds := e.g.Image[index].Bounds()
+	writePoint(e.frameHeader[10:14], bounds.Min)
+	writePoint(e.frameHeader[14:18], bounds.Max)
+	e.frameHeader[18] = uint8(0x00) // No local color table, interlace or sorting.
 }
 
-func writeFrame(w *bufio.Writer, m *image.Paletted, delay int) {
-	writeFrameHeader(w, m, delay)
+const blockSize = 255
+type blockWriter struct {
+	w io.Writer
+	n int
+}
 
-	w.WriteByte(uint8(0x08)) // Start of LZW with minimum code size 8.
+func (bw *blockWriter) Write(p []byte) (n int, err error) {
+	bytesWritten := 0
+	for len(p) > 0 {
+		var blockSize uint8
+		if len(p) <= 255 {
+			blockSize = uint8(len(p))
+		} else {
+			blockSize = uint8(255)
+		}
+		
+		n, err := bw.w.Write(p[:blockSize])
+		if err != nil {
+			return n, err
+		}
+		bytesWritten += n
 
-	compressedImage := compressImage(m)
-
-	const maxBlockSize = 255
-	bytesSoFar := 0
-	bytesRemaining := compressedImage.Len()
-	for bytesRemaining > 0 {
-		if bytesSoFar == 0 {
-            var blockSize uint8
-            if maxBlockSize < bytesRemaining {
-                blockSize = maxBlockSize 
-            } else {
-                blockSize = uint8(bytesRemaining)
-            }
-			w.WriteByte(blockSize)
+		_, err = bw.w.Write([]byte{blockSize})
+		if err != nil {
+			return bytesWritten, err
 		}
 
-		b, _ := compressedImage.ReadByte()
-		w.WriteByte(b)
-
-		bytesSoFar = (bytesSoFar + 1) % maxBlockSize
-		bytesRemaining--
+		p = p[blockSize:]
 	}
 
-	w.WriteByte(uint8(0x00)) // End of LZW data.
+	return bytesWritten, nil
+}
+
+func (e *encoder) writeFrame(index int) (err error) {
+	e.buildFrameHeader(index)
+	_, err = e.w.Write(e.frameHeader[:])
+	if err != nil {
+		return
+	}
+
+	_, err = e.w.Write([]byte{uint8(0x08)}) // Start of LZW with minimum code size 8.
+	if err != nil {
+		return
+	}
+
+	lzww := lzw.NewWriter(&blockWriter{e.w, 0}, lzw.LSB, int(8))
+	_, err = lzww.Write(e.g.Image[index].Pix)
+	lzww.Close()
+	if err != nil {
+		return
+	}
+
+	_, err = e.w.Write([]byte{uint8(0x00)}) // End of LZW data.
+	if err != nil {
+		return
+	}
+
+	return nil
 }
 
 func Encode(w io.Writer, m *image.Paletted) error {
-	animation := gif.GIF{[]*image.Paletted{m}, []int{0}, 0}
-	return EncodeAll(w, &animation)
+	g := gif.GIF{[]*image.Paletted{m}, []int{0}, 0}
+	return EncodeAll(w, &g)
 }
 
-func EncodeAll(w io.Writer, animation *gif.GIF) error {
-	if len(animation.Image) != len(animation.Delay) {
-		return errDelay
+func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
+	if len(g.Image) == 0 {
+		return errors.New("Can't encode zero images.")
 	}
 
-	if len(animation.Image) == 0 {
-		return errNoImage
+	if len(g.Image) != len(g.Delay) {
+		return errors.New(fmt.Sprintf("Number of images and delays must be equal (%s x %s)", len(g.Image), len(g.Delay)))
 	}
 
-	if animation.LoopCount < 0 {
-		animation.LoopCount = 0
-		//return errNegativeLoop
+	if g.LoopCount < 0 {
+		g.LoopCount = 0
 	}
 
-	buffer := bufio.NewWriter(w)
+	var e encoder
+	e.w = w
+	e.g = g
 
-	writeHeader(buffer, animation)
-	for i, _ := range animation.Image {
-		image := animation.Image[i]
-		delay := animation.Delay[i]
-		writeFrame(buffer, image, delay)
+	err = e.writeHeader()
+	if err != nil {
+			return 
 	}
-	buffer.WriteByte(';')
-	buffer.Flush()
+
+
+	for i, _ := range e.g.Image {
+		err = e.writeFrame(i)
+		if err != nil {
+			return 
+		}
+	}
+	
+	_, err = w.Write([]byte{';'})
+	if err != nil {
+		return
+	}
 
 	return nil
 }
 
 func main() {
-    for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
-        file, _ := os.Open(filename + ".gif")
-        animation, _ := gif.DecodeAll(file)
-        file, err := os.Create("new_" + filename + ".gif")
-        EncodeAll(file, animation)
+	//for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
+    for _, filename := range []string{"small"} {
+    	var (err error
+    		file *os.File
+    		g *gif.GIF
+    	)
+
+    	fmt.Println(filename)
+        file, _ = os.Open(filename + ".gif")
+        g, _ = gif.DecodeAll(file)
+        file, _ = os.Create("new_" + filename + ".gif")
+        err = EncodeAll(file, g)
+        fmt.Println("Encoding error:", err)
 
         file, _ = os.Open("new_" + filename + ".gif")
-        animation, err = gif.DecodeAll(file)
-        fmt.Println(err)
+        g, err = gif.DecodeAll(file)
+        fmt.Println("Encoding error:", err)
     }
 }
