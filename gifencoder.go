@@ -16,6 +16,7 @@ type encoder struct {
 	header [13]byte
 	colorTable [3 * 256]byte
 	colorTableSize int
+	applicationExtension [19]byte
 	frameHeader [18]byte
 	hasTransparent bool
 	transparentIndex uint8
@@ -32,9 +33,9 @@ func log2(value int) int {
 }
 
 func writePoint(b []uint8, p image.Point) {
-	b[0] = uint8(p.X)
+	b[0] = uint8(p.X & 0xFF)
 	b[1] = uint8(p.X >> 8)
-	b[2] = uint8(p.Y)
+	b[2] = uint8(p.Y & 0xFF)
 	b[3] = uint8(p.Y >> 8)
 }
 
@@ -81,6 +82,28 @@ func (e *encoder) buildColorTable() {
 	}
 }
 
+func (e *encoder) buildApplicationExtension() {
+	e.applicationExtension[0] = 0x21 // Begin application Extension block.
+	e.applicationExtension[1] = 0xFF
+	e.applicationExtension[2] = 0x0B // Next 11 bytes are Application Extension.
+	e.applicationExtension[3] = 'N' // 8 character application name.
+	e.applicationExtension[4] = 'E'
+	e.applicationExtension[5] = 'T'
+	e.applicationExtension[6] = 'S'
+	e.applicationExtension[7] = 'C'
+	e.applicationExtension[8] = 'A'
+	e.applicationExtension[9] = 'P'
+	e.applicationExtension[10] = 'E'
+	e.applicationExtension[11] = '2' // 3 character version.
+	e.applicationExtension[12] = '.'
+	e.applicationExtension[13] = '0'
+	e.applicationExtension[14] = 0x03 // 3 more bytes of Application Extension.
+	e.applicationExtension[15] = 0x01 // Data sub-block index (always 1).
+	e.applicationExtension[16] = uint8(e.g.LoopCount & 0xFF) // Number of repetitions.
+	e.applicationExtension[17] = uint8(e.g.LoopCount >> 8)
+	e.applicationExtension[18] = 0x00 // End of Application Extension block.
+}
+
 func (e *encoder) writeHeader() (err error) {
 	e.buildHeader()
 	e.buildColorTable()
@@ -93,6 +116,14 @@ func (e *encoder) writeHeader() (err error) {
 	_, err = e.w.Write(e.colorTable[:e.colorTableSize * 3])
 	if err != nil {
 		return
+	}
+
+	if len(e.g.Image) > 1 {
+		e.buildApplicationExtension()
+		_, err = e.w.Write(e.applicationExtension[:])
+		if err != nil {
+			return
+		}
 	}
 
 	return nil
@@ -235,8 +266,8 @@ func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 }
 
 func main() {
-	//for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
-    for _, filename := range []string{"small"} {
+	for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
+    //for _, filename := range []string{"small"} {
     	var (err error
     		file *os.File
     		g *gif.GIF
@@ -251,6 +282,6 @@ func main() {
 
         file, _ = os.Open("new_" + filename + ".gif")
         g, err = gif.DecodeAll(file)
-        fmt.Println("Encoding error:", err)
+        fmt.Println("Decoding error:", err)
     }
 }
