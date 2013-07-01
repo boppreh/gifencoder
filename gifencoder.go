@@ -16,7 +16,7 @@ type encoder struct {
 	header [13]byte
 	colorTable [3 * 256]byte
 	colorTableSize int
-	frameHeader [19]byte
+	frameHeader [18]byte
 	hasTransparent bool
 	transparentIndex uint8
 }
@@ -105,7 +105,7 @@ func (e *encoder) buildFrameHeader(index int) {
 
 
     // The bits in this in this field mean:
-    // 1: Transparent color flag.
+    // x: Transparent color flag.
     // 0: User input (wait for user input before switching frames).
     // 0 \ Disposal method, don't use previous frame as background.
     // 0 /
@@ -114,21 +114,21 @@ func (e *encoder) buildFrameHeader(index int) {
     // 0: Reserved
     // 0: Reserved
     if e.hasTransparent {
-    	e.frameHeader[3] = uint8(0x00)
+    	e.frameHeader[3] = uint8(0x01)
     } else {
-    	e.frameHeader[4] = uint8(0x01)
+    	e.frameHeader[3] = uint8(0x00)
     }    
-    e.frameHeader[5] = e.transparentIndex // Transparent color #, if we were using.
+    e.frameHeader[4] = e.transparentIndex // Transparent color #, if we are using.
     delay := e.g.Delay[index]
-    e.frameHeader[6] = uint8(delay)
-    e.frameHeader[7] = uint8(delay >> 8)
-    e.frameHeader[8] = uint8(0x00) // End of Application Extension data.
+    e.frameHeader[5] = uint8(delay)
+    e.frameHeader[6] = uint8(delay >> 8)
+    e.frameHeader[7] = uint8(0x00) // End of Application Extension data.
 
-	e.frameHeader[9] = uint8(0x2C) // Start of Paletted Descriptor.
+	e.frameHeader[8] = uint8(0x2C) // Start of Paletted Descriptor.
 	bounds := e.g.Image[index].Bounds()
-	writePoint(e.frameHeader[10:14], bounds.Min)
-	writePoint(e.frameHeader[14:18], bounds.Max)
-	e.frameHeader[18] = uint8(0x00) // No local color table, interlace or sorting.
+	writePoint(e.frameHeader[9:13], bounds.Min)
+	writePoint(e.frameHeader[13:17], bounds.Max)
+	e.frameHeader[17] = uint8(0x00) // No local color table, interlace or sorting.
 }
 
 const blockSize = 255
