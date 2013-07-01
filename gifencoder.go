@@ -147,16 +147,16 @@ func (bw *blockWriter) Write(p []byte) (n int, err error) {
 			blockSize = uint8(255)
 		}
 		
-		n, err := bw.w.Write(p[:blockSize])
-		if err != nil {
-			return n, err
-		}
-		bytesWritten += n
-
 		_, err = bw.w.Write([]byte{blockSize})
 		if err != nil {
 			return bytesWritten, err
 		}
+
+		n, err := bw.w.Write(p[:blockSize])
+		if err != nil {
+			return n, err
+		}
+		bytesWritten += n + 1
 
 		p = p[blockSize:]
 	}
