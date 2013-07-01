@@ -11,25 +11,25 @@ import (
 )
 
 type encoder struct {
-	w io.Writer
-	g *gif.GIF
-	header [13]byte
-	colorTable [3 * 256]byte
-	colorTableSize int
+	w                    io.Writer
+	g                    *gif.GIF
+	header               [13]byte
+	colorTable           [3 * 256]byte
+	colorTableSize       int
 	applicationExtension [19]byte
-	frameHeader [18]byte
-	hasTransparent bool
-	transparentIndex uint8
+	frameHeader          [18]byte
+	hasTransparent       bool
+	transparentIndex     uint8
 }
 
 func log2(value int) int {
-    // Undefined for value <= 0, but it's used only for the color table size.
-    result := -1
-    for value > 0 {
-        result += 1
-        value >>= 1
-    }
-    return result
+	// Undefined for value <= 0, but it's used only for the color table size.
+	result := -1
+	for value > 0 {
+		result += 1
+		value >>= 1
+	}
+	return result
 }
 
 func writePoint(b []uint8, p image.Point) {
@@ -53,7 +53,7 @@ func (e *encoder) buildHeader() {
 	writePoint(e.header[6:10], b.Max)
 
 	e.colorTableSize = len(firstImage.Palette)
-    resolution := 8
+	resolution := 8
 	// The bits in this in this field mean:
 	// 1: The globl color table is present.
 	// x \
@@ -64,17 +64,17 @@ func (e *encoder) buildHeader() {
 	// x  |-> log2(color table size) - 1
 	// x /
 	e.header[10] = uint8(0x80 | ((resolution - 1) << 4) | log2(e.colorTableSize) - 1) // Color table information.
-	e.header[11] = 0x00 // Background color.
-	e.header[12] = 0x00 // Default pixel aspect ratio.
+	e.header[11] = 0x00                                                               // Background color.
+	e.header[12] = 0x00                                                               // Default pixel aspect ratio.
 }
 
 func (e *encoder) buildColorTable() {
 	// Global Color Table.
 	for i, c := range e.g.Image[0].Palette {
 		r, g, b, a := c.RGBA()
-		e.colorTable[i * 3 + 0] = uint8(r >> 8)
-		e.colorTable[i * 3 + 1] = uint8(g >> 8)
-		e.colorTable[i * 3 + 2] = uint8(b >> 8)
+		e.colorTable[i*3+0] = uint8(r >> 8)
+		e.colorTable[i*3+1] = uint8(g >> 8)
+		e.colorTable[i*3+2] = uint8(b >> 8)
 		if a < 255 {
 			e.hasTransparent = true
 			e.transparentIndex = uint8(i)
@@ -86,7 +86,7 @@ func (e *encoder) buildApplicationExtension() {
 	e.applicationExtension[0] = 0x21 // Begin application Extension block.
 	e.applicationExtension[1] = 0xFF
 	e.applicationExtension[2] = 0x0B // Next 11 bytes are Application Extension.
-	e.applicationExtension[3] = 'N' // 8 character application name.
+	e.applicationExtension[3] = 'N'  // 8 character application name.
 	e.applicationExtension[4] = 'E'
 	e.applicationExtension[5] = 'T'
 	e.applicationExtension[6] = 'S'
@@ -97,8 +97,8 @@ func (e *encoder) buildApplicationExtension() {
 	e.applicationExtension[11] = '2' // 3 character version.
 	e.applicationExtension[12] = '.'
 	e.applicationExtension[13] = '0'
-	e.applicationExtension[14] = 0x03 // 3 more bytes of Application Extension.
-	e.applicationExtension[15] = 0x01 // Data sub-block index (always 1).
+	e.applicationExtension[14] = 0x03                        // 3 more bytes of Application Extension.
+	e.applicationExtension[15] = 0x01                        // Data sub-block index (always 1).
 	e.applicationExtension[16] = uint8(e.g.LoopCount & 0xFF) // Number of repetitions.
 	e.applicationExtension[17] = uint8(e.g.LoopCount >> 8)
 	e.applicationExtension[18] = 0x00 // End of Application Extension block.
@@ -113,7 +113,7 @@ func (e *encoder) writeHeader() (err error) {
 		return
 	}
 
-	_, err = e.w.Write(e.colorTable[:e.colorTableSize * 3])
+	_, err = e.w.Write(e.colorTable[:e.colorTableSize*3])
 	if err != nil {
 		return
 	}
@@ -134,26 +134,25 @@ func (e *encoder) buildFrameHeader(index int) {
 	e.frameHeader[1] = uint8(0xF9)
 	e.frameHeader[2] = uint8(0x04) // Size of GCE.
 
-
-    // The bits in this in this field mean:
-    // x: Transparent color flag.
-    // 0: User input (wait for user input before switching frames).
-    // 0 \ Disposal method, don't use previous frame as background.
-    // 0 /
-    // 0: Reserved
-    // 0: Reserved
-    // 0: Reserved
-    // 0: Reserved
-    if e.hasTransparent {
-    	e.frameHeader[3] = uint8(0x01)
-    } else {
-    	e.frameHeader[3] = uint8(0x00)
-    }    
-    e.frameHeader[4] = e.transparentIndex // Transparent color #, if we are using.
-    delay := e.g.Delay[index]
-    e.frameHeader[5] = uint8(delay)
-    e.frameHeader[6] = uint8(delay >> 8)
-    e.frameHeader[7] = uint8(0x00) // End of Application Extension data.
+	// The bits in this in this field mean:
+	// x: Transparent color flag.
+	// 0: User input (wait for user input before switching frames).
+	// 0 \ Disposal method, don't use previous frame as background.
+	// 0 /
+	// 0: Reserved
+	// 0: Reserved
+	// 0: Reserved
+	// 0: Reserved
+	if e.hasTransparent {
+		e.frameHeader[3] = uint8(0x01)
+	} else {
+		e.frameHeader[3] = uint8(0x00)
+	}
+	e.frameHeader[4] = e.transparentIndex // Transparent color #, if we are using.
+	delay := e.g.Delay[index]
+	e.frameHeader[5] = uint8(delay)
+	e.frameHeader[6] = uint8(delay >> 8)
+	e.frameHeader[7] = uint8(0x00) // End of Application Extension data.
 
 	e.frameHeader[8] = uint8(0x2C) // Start of Paletted Descriptor.
 	bounds := e.g.Image[index].Bounds()
@@ -163,6 +162,7 @@ func (e *encoder) buildFrameHeader(index int) {
 }
 
 const blockSize = 255
+
 type blockWriter struct {
 	w io.Writer
 	n int
@@ -177,7 +177,7 @@ func (bw *blockWriter) Write(p []byte) (n int, err error) {
 		} else {
 			blockSize = uint8(255)
 		}
-		
+
 		_, err = bw.w.Write([]byte{blockSize})
 		if err != nil {
 			return bytesWritten, err
@@ -246,17 +246,16 @@ func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 
 	err = e.writeHeader()
 	if err != nil {
-			return 
+		return
 	}
-
 
 	for i, _ := range e.g.Image {
 		err = e.writeFrame(i)
 		if err != nil {
-			return 
+			return
 		}
 	}
-	
+
 	_, err = w.Write([]byte{';'})
 	if err != nil {
 		return
@@ -266,22 +265,23 @@ func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 }
 
 func main() {
-	for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small"} {
-    //for _, filename := range []string{"small"} {
-    	var (err error
-    		file *os.File
-    		g *gif.GIF
-    	)
+	for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small", "semaphore"} {
+		//for _, filename := range []string{"small"} {
+		var (
+			err  error
+			file *os.File
+			g    *gif.GIF
+		)
 
-    	fmt.Println(filename)
-        file, _ = os.Open(filename + ".gif")
-        g, _ = gif.DecodeAll(file)
-        file, _ = os.Create("new_" + filename + ".gif")
-        err = EncodeAll(file, g)
-        fmt.Println("Encoding error:", err)
+		fmt.Println(filename)
+		file, _ = os.Open(filename + ".gif")
+		g, _ = gif.DecodeAll(file)
+		file, _ = os.Create("new_" + filename + ".gif")
+		err = EncodeAll(file, g)
+		fmt.Println("Encoding error:", err)
 
-        file, _ = os.Open("new_" + filename + ".gif")
-        g, err = gif.DecodeAll(file)
-        fmt.Println("Decoding error:", err)
-    }
+		file, _ = os.Open("new_" + filename + ".gif")
+		g, err = gif.DecodeAll(file)
+		fmt.Println("Decoding error:", err)
+	}
 }
