@@ -137,21 +137,21 @@ func (e *encoder) buildFrameHeader(index int) {
 	// The bits in this in this field mean:
 	// x: Transparent color flag.
 	// 0: User input (wait for user input before switching frames).
-	// 0 \ Disposal method, don't use previous frame as background.
+	// 1 \ Disposal method, use previous frame as background.
 	// 0 /
 	// 0: Reserved
 	// 0: Reserved
 	// 0: Reserved
 	// 0: Reserved
 	if e.hasTransparent {
-		e.frameHeader[3] = uint8(0x01)
+		e.frameHeader[3] = uint8(0x05)
 	} else {
-		e.frameHeader[3] = uint8(0x00)
+		e.frameHeader[3] = uint8(0x04)
 	}
-	e.frameHeader[4] = e.transparentIndex // Transparent color #, if we are using.
 	delay := e.g.Delay[index]
-	e.frameHeader[5] = uint8(delay)
-	e.frameHeader[6] = uint8(delay >> 8)
+	e.frameHeader[4] = uint8(delay)
+	e.frameHeader[5] = uint8(delay >> 8)
+	e.frameHeader[6] = e.transparentIndex // Transparent color #, if we are using.
 	e.frameHeader[7] = uint8(0x00) // End of Application Extension data.
 
 	e.frameHeader[8] = uint8(0x2C) // Start of Paletted Descriptor.
