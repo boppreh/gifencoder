@@ -202,12 +202,13 @@ func (e *encoder) writeFrame(index int) (err error) {
 		return
 	}
 
-	_, err = e.w.Write([]byte{uint8(0x08)}) // Start of LZW with minimum code size 8.
+	codeSize := log2(e.colorTableSize + 2)
+	_, err = e.w.Write([]byte{uint8(codeSize)}) // Start of LZW with minimum code size.
 	if err != nil {
 		return
 	}
 
-	lzww := lzw.NewWriter(&blockWriter{e.w, 0}, lzw.LSB, int(8))
+	lzww := lzw.NewWriter(&blockWriter{e.w, 0}, lzw.LSB, codeSize)
 	_, err = lzww.Write(e.g.Image[index].Pix)
 	lzww.Close()
 	if err != nil {
