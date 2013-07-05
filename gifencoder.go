@@ -7,12 +7,12 @@ import (
 	"image"
 	"io"
 	"os"
-	"./reader"
+	"image/gif"
 )
 
 type encoder struct {
 	w                    io.Writer
-	g                    *reader.GIF
+	g                    *gif.GIF
 	header               [13]byte
 	colorTable           [3 * 256]byte
 	colorTableSize       int
@@ -137,16 +137,16 @@ func (e *encoder) buildFrameHeader(index int) {
 	// The bits in this in this field mean:
 	// x: Transparent color flag.
 	// 0: User input (wait for user input before switching frames).
-	// 1 \ Disposal method, use previous frame as background.
+	// 0 \ Disposal method, don't use previous frame as background.
 	// 0 /
 	// 0: Reserved
 	// 0: Reserved
 	// 0: Reserved
 	// 0: Reserved
 	if e.hasTransparent {
-		e.frameHeader[3] = uint8(0x05)
+		e.frameHeader[3] = uint8(0x01)
 	} else {
-		e.frameHeader[3] = uint8(0x04)
+		e.frameHeader[3] = uint8(0x00)
 	}
 	delay := e.g.Delay[index]
 	e.frameHeader[4] = uint8(delay)
@@ -226,11 +226,11 @@ func (e *encoder) writeFrame(index int) (err error) {
 }
 
 func Encode(w io.Writer, m *image.Paletted) error {
-	g := reader.GIF{[]*image.Paletted{m}, []int{0}, 0}
+	g := gif.GIF{[]*image.Paletted{m}, []int{0}, 0}
 	return EncodeAll(w, &g)
 }
 
-func EncodeAll(w io.Writer, g *reader.GIF) (err error) {
+func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 	if len(g.Image) == 0 {
 		return errors.New("Can't encode zero images.")
 	}
@@ -273,18 +273,18 @@ func main() {
 		var (
 			err  error
 			file *os.File
-			g    *reader.GIF
+			g    *gif.GIF
 		)
 
 		fmt.Println(filename)
 		file, _ = os.Open(filename + ".gif")
-		g, _ = reader.DecodeAll(file)
+		g, _ = gif.DecodeAll(file)
 		file, _ = os.Create("new_" + filename + ".gif")
 		err = EncodeAll(file, g)
 		fmt.Println("Encoding error:", err)
 
 		file, _ = os.Open("new_" + filename + ".gif")
-		g, err = reader.DecodeAll(file)
+		g, err = gif.DecodeAll(file)
 		fmt.Println("Decoding error:", err)
 	}
 }
