@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/gif"
 	"io"
 	"os"
+	"./reader"
 )
 
 type encoder struct {
 	w                    io.Writer
-	g                    *gif.GIF
+	g                    *reader.GIF
 	header               [13]byte
 	colorTable           [3 * 256]byte
 	colorTableSize       int
@@ -157,7 +157,9 @@ func (e *encoder) buildFrameHeader(index int) {
 	e.frameHeader[8] = uint8(0x2C) // Start of Paletted Descriptor.
 	bounds := e.g.Image[index].Bounds()
 	writePoint(e.frameHeader[9:13], bounds.Min)
-	writePoint(e.frameHeader[13:17], bounds.Max)
+	width := bounds.Max.X - bounds.Min.X
+	height := bounds.Max.Y - bounds.Min.Y
+	writePoint(e.frameHeader[13:17], image.Point{width, height})
 	e.frameHeader[17] = uint8(0x00) // No local color table, interlace or sorting.
 }
 
@@ -224,11 +226,11 @@ func (e *encoder) writeFrame(index int) (err error) {
 }
 
 func Encode(w io.Writer, m *image.Paletted) error {
-	g := gif.GIF{[]*image.Paletted{m}, []int{0}, 0}
+	g := reader.GIF{[]*image.Paletted{m}, []int{0}, 0}
 	return EncodeAll(w, &g)
 }
 
-func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
+func EncodeAll(w io.Writer, g *reader.GIF) (err error) {
 	if len(g.Image) == 0 {
 		return errors.New("Can't encode zero images.")
 	}
@@ -271,18 +273,18 @@ func main() {
 		var (
 			err  error
 			file *os.File
-			g    *gif.GIF
+			g    *reader.GIF
 		)
 
 		fmt.Println(filename)
 		file, _ = os.Open(filename + ".gif")
-		g, _ = gif.DecodeAll(file)
+		g, _ = reader.DecodeAll(file)
 		file, _ = os.Create("new_" + filename + ".gif")
 		err = EncodeAll(file, g)
 		fmt.Println("Encoding error:", err)
 
 		file, _ = os.Open("new_" + filename + ".gif")
-		g, err = gif.DecodeAll(file)
+		g, err = reader.DecodeAll(file)
 		fmt.Println("Decoding error:", err)
 	}
 }
