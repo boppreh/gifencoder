@@ -224,11 +224,13 @@ func (e *encoder) writeFrame(index int) (err error) {
 	return nil
 }
 
+// Encode takes a single *image.Paletted and encodes it to an io.Writer
 func Encode(w io.Writer, m *image.Paletted) error {
 	g := gif.GIF{[]*image.Paletted{m}, []int{0}, 0}
 	return EncodeAll(w, &g)
 }
 
+// EncodeAll encodes a gif to an io.Writer.
 func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 	if len(g.Image) == 0 {
 		return errors.New("Can't encode zero images.")
