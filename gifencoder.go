@@ -1,4 +1,4 @@
-package main
+package gifencoder
 
 import (
 	"compress/lzw"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"os"
 	"image/gif"
 )
 
@@ -265,26 +264,4 @@ func EncodeAll(w io.Writer, g *gif.GIF) (err error) {
 	}
 
 	return nil
-}
-
-func main() {
-	for _, filename := range []string{"earth", "pattern", "penguin", "newton", "small", "semaphore"} {
-		//for _, filename := range []string{"small"} {
-		var (
-			err  error
-			file *os.File
-			g    *gif.GIF
-		)
-
-		fmt.Println(filename)
-		file, _ = os.Open(filename + ".gif")
-		g, _ = gif.DecodeAll(file)
-		file, _ = os.Create("new_" + filename + ".gif")
-		err = EncodeAll(file, g)
-		fmt.Println("Encoding error:", err)
-
-		file, _ = os.Open("new_" + filename + ".gif")
-		g, err = gif.DecodeAll(file)
-		fmt.Println("Decoding error:", err)
-	}
 }
