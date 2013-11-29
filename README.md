@@ -1,6 +1,9 @@
 gifencoder
 ==========
 
+**UPDATE**
+Since version 1.2, Go has included an implementation of `Encode` and `EncodeAll` into the standard library.
+
 The Go language has support for a lot of things in its library, including images.
 Unfortunately half of the [GIF](http://golang.org/pkg/image/gif/) package is missing: you can only decode files, not
 encode them. This repository aims to provide the `Encode` and `EncodeAll` functions
